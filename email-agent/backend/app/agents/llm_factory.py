@@ -27,7 +27,7 @@ def get_llm(temperature: float = 0.0, max_tokens: int | None = None) -> BaseChat
             raise ValueError("GEMINI_API_KEY is required when llm_provider is 'gemini'")
             
         return ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemma-4-31b-it",
             api_key=settings.gemini_api_key,
             temperature=temperature,
             max_tokens=max_tokens,

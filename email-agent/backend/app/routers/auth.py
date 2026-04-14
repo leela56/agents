@@ -20,8 +20,8 @@ from app.security import TokenEncryptor
 logger = structlog.get_logger()
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# In-memory CSRF state store (per-session in production, use Redis)
-_oauth_states: dict[str, bool] = {}
+# In-memory CSRF state store with PKCE verifier (per-session in production, use Redis)
+_oauth_states: dict[str, str | None] = {}
 
 
 def _get_encryptor(settings: Settings = Depends(get_settings)) -> TokenEncryptor:
@@ -54,8 +54,9 @@ async def login(settings: Settings = Depends(get_settings)) -> dict:
 
     # Generate CSRF state token
     state = secrets.token_urlsafe(32)
-    _oauth_states[state] = True
 
+    # Store the PKCE code verifier with the state
+    # Google Auth library generates this automatically in authorization_url()
     authorization_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
@@ -63,7 +64,10 @@ async def login(settings: Settings = Depends(get_settings)) -> dict:
         prompt="consent",
     )
 
-    logger.info("oauth_login_initiated")
+    # Store state -> code_verifier mapping for callback
+    _oauth_states[state] = flow.code_verifier
+
+    logger.info("oauth_login_initiated", state_prefix=state[:8])
     return {"authorization_url": authorization_url}
 
 
@@ -83,15 +87,17 @@ async def callback(
     if not code or not state:
         raise HTTPException(status_code=400, detail="Missing code or state parameter")
 
-    # Validate CSRF state
+    # Validate CSRF state and retrieve code verifier
     if state not in _oauth_states:
         logger.warning("oauth_csrf_validation_failed")
         raise HTTPException(status_code=400, detail="Invalid state parameter (CSRF protection)")
 
-    del _oauth_states[state]
+    code_verifier = _oauth_states.pop(state)
 
-    # Exchange code for token
+    # Exchange code for token with PKCE verifier
     flow = _build_flow(settings)
+    if code_verifier:
+        flow.code_verifier = code_verifier
     try:
         flow.fetch_token(code=code)
     except Exception as e:

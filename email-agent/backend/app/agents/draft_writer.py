@@ -64,7 +64,12 @@ async def draft_reply(
 
     try:
         response = await llm.ainvoke(prompt)
-        content = response.content.strip()
+        
+        if isinstance(response.content, list):
+            content_parts = [str(part["text"]) for part in response.content if isinstance(part, dict) and "text" in part]
+            content = "\n".join(content_parts).strip()
+        else:
+            content = str(response.content).strip()
 
         # Clean potential markdown wrapping
         if content.startswith("```"):
