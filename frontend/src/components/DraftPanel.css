@@ -1,0 +1,140 @@
+/* ---- Draft Panel ---- */
+.draft-panel {
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.draft-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.draft-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-green);
+}
+
+.tone-selector {
+  display: flex;
+  gap: 4px;
+}
+
+.tone-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.tone-btn:hover {
+  background: var(--bg-input);
+  border-color: var(--border-medium);
+}
+.tone-btn.active {
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.12), rgba(168, 85, 247, 0.08));
+  border-color: rgba(66, 133, 244, 0.25);
+  color: var(--text-primary);
+}
+.tone-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tone-icon {
+  font-size: 0.85rem;
+}
+.tone-label {
+  display: inline;
+}
+
+.draft-body {
+  padding: 18px;
+}
+
+.draft-text {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+.draft-editor {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.draft-editor:focus {
+  border-color: var(--accent-blue);
+}
+
+.draft-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.draft-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.draft-instructions {
+  flex: 1;
+}
+
+.instructions-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.instructions-input:focus {
+  border-color: var(--accent-blue);
+}
+.instructions-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.draft-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}

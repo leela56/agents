@@ -1,0 +1,48 @@
+# ===== Secrets =====
+.env
+!.env.example
+token.json
+token.json.enc
+*.enc
+credentials.json
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.eggs/
+
+# ===== Node =====
+node_modules/
+.npm
+.eslintcache
+
+# ===== Build =====
+frontend/dist/
+*.map
+
+# ===== Database =====
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ===== Docker =====
+docker-compose.override.yml
