@@ -1,10 +1,48 @@
+﻿# ===== Secrets =====
+.env
+!.env.example
+token.json
+token.json.enc
+*.enc
+credentials.json
+
+# ===== Python =====
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.egg-info/
 .venv/
 venv/
-app/data/
+dist/
+build/
+.eggs/
+
+# ===== Node =====
+node_modules/
+.npm
+.eslintcache
+
+# ===== Build =====
+frontend/dist/
+*.map
+
+# ===== Database (job agent + generic) =====
 *.db
 *.sqlite*
-credentials.json
-token.json
-.env
+app/data/
+data/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ===== Docker =====
+docker-compose.override.yml
