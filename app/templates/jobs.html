@@ -1,0 +1,700 @@
+{% extends "base.html" %}
+{% block title %}Jobs - nvoids Job Agent{% endblock %}
+{% block content %}
+  <style>
+    .jobs-layout {
+      display: grid;
+      grid-template-columns: 1fr minmax(280px, 38%);
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .jobs-layout { grid-template-columns: 1fr; }
+      .jobs-layout__jd { position: static; max-height: none; }
+    }
+    .jobs-layout__jd {
+      position: sticky;
+      top: 12px;
+      max-height: calc(100vh - 100px);
+      min-height: 120px;
+    }
+    .jd-panel { display: flex; flex-direction: column; min-height: 0; }
+    .jd-panel__heading {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--muted); margin: 0 0 10px; font-weight: 600;
+    }
+    .jd-body {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow: auto;
+      flex: 1;
+      min-height: 0;
+      max-height: calc(100vh - 220px);
+      padding: 10px 0;
+      border-top: 1px solid var(--border);
+    }
+    @media (max-width: 900px) {
+      .jd-body { max-height: 40vh; }
+    }
+    button.jd-open {
+      background: none;
+      border: 0;
+      padding: 0;
+      color: var(--accent);
+      cursor: pointer;
+      font: inherit;
+      text-decoration: underline;
+    }
+    button.jd-open:hover { filter: brightness(1.1); }
+    button.jd-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .jd-open-wrap { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .draft-modal-backdrop {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(5, 8, 14, 0.72);
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 24px 16px; overflow-y: auto;
+    }
+    .draft-modal-backdrop[hidden] { display: none !important; }
+    .draft-modal-dialog {
+      width: 100%; max-width: min(960px, calc(100vw - 32px)); margin-top: 32px;
+      max-height: calc(100vh - 48px); overflow-y: auto;
+    }
+    .draft-modal-split {
+      display: grid;
+      grid-template-columns: 1fr minmax(260px, 36%);
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 820px) {
+      .draft-modal-split { grid-template-columns: 1fr; }
+      .draft-modal-jd { border-left: 0 !important; border-top: 1px solid var(--border); padding-left: 0 !important; padding-top: 14px; }
+    }
+    .draft-modal-jd {
+      border-left: 1px solid var(--border);
+      padding-left: 16px;
+      min-height: 120px;
+      max-height: calc(100vh - 120px);
+      overflow: auto;
+    }
+    .draft-modal-jd[hidden] { display: none !important; }
+    .dm-jd-body {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 8px;
+      max-height: min(420px, 50vh);
+      overflow: auto;
+    }
+    button.dm-jd-link {
+      background: none; border: 0; padding: 0; margin-left: 6px;
+      color: var(--accent); cursor: pointer; font: inherit;
+      text-decoration: underline; font-weight: 600;
+    }
+    .draft-modal-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; margin-bottom: 12px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .draft-modal-header h3 { margin: 0; font-size: 17px; line-height: 1.2; }
+    button.draft-modal-close {
+      flex-shrink: 0; width: 34px; height: 34px; border: 0; border-radius: 6px;
+      background: var(--panel-2); color: var(--text); font-size: 22px; line-height: 1;
+      cursor: pointer; padding: 0; font-weight: 300;
+    }
+    button.draft-modal-close:hover { background: var(--border); }
+    button.draft-modal-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .draft-modal-dialog .muted { font-size: 12px; margin-bottom: 12px; }
+    button.draft-modal-trigger {
+      background: none; border: 0; padding: 0; color: var(--accent);
+      cursor: pointer; font: inherit; text-decoration: underline;
+      text-align: left; flex-shrink: 0;
+    }
+    button.draft-modal-trigger:hover { filter: brightness(1.1); }
+    button.draft-modal-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    #dm-msg { margin-top: 10px; }
+  </style>
+
+  <div class="row" style="margin-bottom: 12px;">
+    <a class="btn secondary" href="/">← Back to dashboard</a>
+  </div>
+  <h2>Matched Jobs</h2>
+
+  {% if not jobs %}
+    <div class="card"><p class="muted">No matched jobs yet. Run a poll from the
+      <a href="/">Dashboard</a>.</p></div>
+  {% else %}
+    <div id="jobs-page-meta" hidden
+      data-gmail-authed="{{ 'true' if gmail_authed else 'false' }}"
+      data-has-resume="{{ 'true' if has_resume else 'false' }}"></div>
+    <div class="jobs-layout">
+      <div class="jobs-layout__main">
+        <div class="card" style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Location</th>
+                <th>Posted</th>
+                <th>Last seen</th>
+                <th>Drafts</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for job in jobs %}
+                <tr>
+                  <td>{{ job.title or "(no title)" }}</td>
+                  <td>{{ job.location }}</td>
+                  <td>{{ job.posted_at }}</td>
+                  <td>{{ job.last_seen_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                  <td>
+                    {% if job.drafts %}
+                      {% for d in job.drafts %}
+                        <div class="draft-row">
+                          <button type="button" class="draft-modal-trigger"
+                            data-get-url="{{ request.url_for('draft_api_get', draft_id=d.id) }}"
+                            data-patch-url="{{ request.url_for('draft_api_patch', draft_id=d.id) }}"
+                            data-push-url="{{ request.url_for('draft_api_push', draft_id=d.id) }}"
+                            data-send-url="{{ request.url_for('draft_api_send', draft_id=d.id) }}"
+                            data-full-url="{{ request.url_for('draft_view', draft_id=d.id) }}"
+                            style="flex-shrink:0;">view the draft</button>
+                          <span class="draft-row__email muted" title="{{ d.recruiter_email }}">{{ d.recruiter_email }}</span>
+                          <span class="draft-row__tail">
+                            <span class="badge {% if d.status == 'pushed' or d.status == 'sent' %}ok{% elif d.status == 'error' %}err{% else %}warn{% endif %}">
+                              {{ d.status }}
+                            </span>
+                            {% if d.status != 'sent' %}
+                              <form method="post" action="/drafts/{{ d.id }}/send" style="display:inline; margin:0;">
+                                <button type="submit" class="secondary" style="padding: 4px 8px;">Send</button>
+                              </form>
+                            {% endif %}
+                          </span>
+                        </div>
+                      {% endfor %}
+                    {% else %}
+                      <span class="muted">none</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if job.url %}
+                      <span class="jd-open-wrap">
+                        <button type="button" class="jd-open"
+                          data-fetch-url="{{ request.url_for('job_description', job_id=job.id) }}"
+                          title="Show job description on the right">open</button>
+                        <a href="{{ job.url }}" target="_blank" rel="noopener" class="muted"
+                          style="font-size:12px;" title="Open listing on nvoids in a new tab">↗</a>
+                      </span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <aside class="jobs-layout__jd">
+        <div class="card jd-panel">
+          <div class="jd-panel__heading">Listing preview</div>
+          <p id="jd-placeholder" class="muted" style="margin:0;font-size:13px;">
+            Hover <strong>open</strong> for a moment, or click it, to load the job text from nvoids here.
+          </p>
+          <div id="jd-details" hidden>
+            <h4 id="jd-title" style="margin:0 0 6px;font-size:15px;font-weight:600;"></h4>
+            <p id="jd-meta" class="muted" style="margin:0 0 8px;font-size:12px;"></p>
+            <p id="jd-err" class="flash error" style="display:none;margin:0 0 8px;padding:8px 10px;"></p>
+            <div id="jd-body" class="jd-body" aria-live="polite"></div>
+            <p style="margin:10px 0 0;">
+              <a id="jd-ext" href="#" target="_blank" rel="noopener" class="muted">Open on nvoids ↗</a>
+            </p>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div id="draft-modal" class="draft-modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="dm-title">
+      <div class="card draft-modal-dialog">
+        <div class="draft-modal-header">
+          <h3 id="dm-title">Draft</h3>
+          <button type="button" class="draft-modal-close" id="dm-x" aria-label="Close">&times;</button>
+        </div>
+        <div class="draft-modal-split">
+          <div class="draft-modal-main">
+            <p id="dm-subtitle" class="muted" style="margin:0 0 12px;line-height:1.45;"></p>
+            <p id="dm-signoff-hint" class="flash warn" style="display:none;margin:0 0 12px;padding:8px 10px;font-size:12px;line-height:1.45;"></p>
+            <form id="dm-form" onsubmit="return false;">
+              <label for="dm-to">To</label>
+              <input type="email" id="dm-to" name="to" required autocomplete="off">
+
+              <label for="dm-subject" style="margin-top:10px;">Subject</label>
+              <input type="text" id="dm-subject" name="subject" required>
+
+              <label for="dm-body" style="margin-top:10px;">Body</label>
+              <textarea id="dm-body" name="body" rows="10" required></textarea>
+
+              <label for="dm-resume" style="margin-top:10px;">Resume for this push (optional)</label>
+              <input type="file" id="dm-resume" name="resume" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+              <p class="muted" style="font-size:12px;margin:4px 0 0;">
+                If empty, your active resume from <strong>Settings</strong> is used when you push or send.
+              </p>
+
+              <div class="row nowrap" style="margin-top:14px;flex-wrap:wrap;">
+                <button type="button" id="dm-save" class="secondary">Save</button>
+                <button type="button" id="dm-push">Save &amp; push to Gmail</button>
+                <button type="button" id="dm-send" class="danger">Save &amp; send via Gmail</button>
+                <a id="dm-full" class="btn secondary" href="#" target="_blank" rel="noopener">Open full page</a>
+                <button type="button" id="dm-close" class="secondary">Close</button>
+              </div>
+            </form>
+            <p id="dm-msg" class="flash" style="display:none;margin-top:12px;"></p>
+          </div>
+          <aside id="dm-jd-aside" class="draft-modal-jd" hidden>
+            <div class="jd-panel__heading" style="margin-bottom:6px;">Job description</div>
+            <p id="dm-jd-placeholder" class="muted" style="margin:0;font-size:12px;">
+              Click <strong>JD</strong> next to the job line to load the listing text here.
+            </p>
+            <div id="dm-jd-details" hidden>
+              <h4 id="dm-jd-title" style="margin:8px 0 4px;font-size:14px;font-weight:600;"></h4>
+              <p id="dm-jd-meta" class="muted" style="margin:0 0 6px;font-size:11px;"></p>
+              <p id="dm-jd-err" class="flash error" style="display:none;margin:0 0 6px;padding:6px 8px;font-size:12px;"></p>
+              <div id="dm-jd-body" class="dm-jd-body" aria-live="polite"></div>
+              <p style="margin:8px 0 0;">
+                <a id="dm-jd-ext" href="#" target="_blank" rel="noopener" class="muted" style="font-size:12px;">Open on nvoids ↗</a>
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <script>
+(function () {
+  var HOVER_MS = 380;
+  var hoverTimer = null;
+  var reqSeq = 0;
+
+  var ph = document.getElementById("jd-placeholder");
+  var box = document.getElementById("jd-details");
+  var elTitle = document.getElementById("jd-title");
+  var elMeta = document.getElementById("jd-meta");
+  var elErr = document.getElementById("jd-err");
+  var elBody = document.getElementById("jd-body");
+  var elExt = document.getElementById("jd-ext");
+
+  function clearTimer() {
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+  }
+
+  function showPanel() {
+    ph.hidden = true;
+    box.hidden = false;
+  }
+
+  function setLoading() {
+    showPanel();
+    elTitle.textContent = "Loading…";
+    elMeta.textContent = "";
+    elBody.textContent = "";
+    elErr.style.display = "none";
+    elExt.href = "#";
+  }
+
+  function render(data) {
+    showPanel();
+    elTitle.textContent = data.title || "(no title)";
+    var loc = data.location || "";
+    elMeta.textContent = loc;
+    if (data.error) {
+      elErr.textContent = data.error;
+      elErr.style.display = "block";
+      elBody.textContent = data.body || "";
+    } else {
+      elErr.style.display = "none";
+      elBody.textContent = data.body || "(No text extracted.)";
+    }
+    if (data.url) {
+      elExt.href = data.url;
+      elExt.style.display = "";
+    } else {
+      elExt.style.display = "none";
+    }
+  }
+
+  function loadJd(fetchUrl) {
+    if (!fetchUrl) return;
+    var mySeq = ++reqSeq;
+    setLoading();
+    fetch(fetchUrl, { headers: { "Accept": "application/json" } })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, j: j };
+        });
+      })
+      .then(function (_ref) {
+        if (mySeq !== reqSeq) return;
+        var j = _ref.j;
+        if (!_ref.ok) {
+          var errMsg = j.error;
+          if (!errMsg && j.detail) {
+            errMsg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+          }
+          render({
+            title: j.title || "Could not load",
+            location: j.location || "",
+            body: j.body || "",
+            url: j.url || "",
+            error: errMsg || "Request failed",
+          });
+          return;
+        }
+        render(j);
+      })
+      .catch(function (e) {
+        if (mySeq !== reqSeq) return;
+        render({ title: "Error", location: "", body: "", url: "", error: String(e) });
+      });
+  }
+
+  document.querySelectorAll("button.jd-open").forEach(function (btn) {
+    btn.addEventListener("mouseenter", function () {
+      clearTimer();
+      var u = btn.getAttribute("data-fetch-url");
+      hoverTimer = setTimeout(function () { loadJd(u); }, HOVER_MS);
+    });
+    btn.addEventListener("mouseleave", clearTimer);
+    btn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      clearTimer();
+      loadJd(btn.getAttribute("data-fetch-url"));
+    });
+  });
+})();
+
+(function () {
+  var meta = document.getElementById("jobs-page-meta");
+  var gmailAuthed = meta && meta.getAttribute("data-gmail-authed") === "true";
+  var hasResume = meta && meta.getAttribute("data-has-resume") === "true";
+
+  var backdrop = document.getElementById("draft-modal");
+  var dmGet = "";
+  var dmPatch = "";
+  var dmPush = "";
+  var dmSend = "";
+  var dmFull = document.getElementById("dm-full");
+  var dmTitle = document.getElementById("dm-title");
+  var dmSubtitle = document.getElementById("dm-subtitle");
+  var dmTo = document.getElementById("dm-to");
+  var dmSubject = document.getElementById("dm-subject");
+  var dmBody = document.getElementById("dm-body");
+  var dmSignoffHint = document.getElementById("dm-signoff-hint");
+  var dmResume = document.getElementById("dm-resume");
+  var dmMsg = document.getElementById("dm-msg");
+  var dmPushBtn = document.getElementById("dm-push");
+  var dmSendBtn = document.getElementById("dm-send");
+
+  var dmJdAside = document.getElementById("dm-jd-aside");
+  var dmJdPh = document.getElementById("dm-jd-placeholder");
+  var dmJdDet = document.getElementById("dm-jd-details");
+  var dmJdTitle = document.getElementById("dm-jd-title");
+  var dmJdMeta = document.getElementById("dm-jd-meta");
+  var dmJdErr = document.getElementById("dm-jd-err");
+  var dmJdBody = document.getElementById("dm-jd-body");
+  var dmJdExt = document.getElementById("dm-jd-ext");
+  var jdModalReq = 0;
+
+  function resetModalJd() {
+    dmJdAside.hidden = true;
+    dmJdPh.hidden = false;
+    dmJdDet.hidden = true;
+    dmJdErr.style.display = "none";
+    dmJdErr.textContent = "";
+    dmJdBody.textContent = "";
+    dmJdTitle.textContent = "";
+    dmJdMeta.textContent = "";
+    dmJdExt.href = "#";
+  }
+
+  function loadModalJd(fetchUrl) {
+    if (!fetchUrl) return;
+    var my = ++jdModalReq;
+    dmJdAside.hidden = false;
+    dmJdPh.hidden = true;
+    dmJdDet.hidden = false;
+    dmJdTitle.textContent = "Loading…";
+    dmJdMeta.textContent = "";
+    dmJdBody.textContent = "";
+    dmJdErr.style.display = "none";
+    dmJdExt.href = "#";
+    fetch(fetchUrl, { headers: { Accept: "application/json" } })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, j: j };
+        });
+      })
+      .then(function (x) {
+        if (my !== jdModalReq) return;
+        var j = x.j;
+        if (!x.ok) {
+          var errMsg = j.error;
+          if (!errMsg && j.detail) {
+            errMsg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+          }
+          dmJdTitle.textContent = "Could not load";
+          dmJdMeta.textContent = "";
+          dmJdErr.textContent = errMsg || "Request failed";
+          dmJdErr.style.display = "block";
+          dmJdBody.textContent = j.body || "";
+          return;
+        }
+        dmJdTitle.textContent = j.title || "(no title)";
+        dmJdMeta.textContent = j.location || "";
+        if (j.error) {
+          dmJdErr.textContent = j.error;
+          dmJdErr.style.display = "block";
+          dmJdBody.textContent = j.body || "";
+        } else {
+          dmJdErr.style.display = "none";
+          dmJdBody.textContent = j.body || "(No text extracted.)";
+        }
+        if (j.url) {
+          dmJdExt.href = j.url;
+          dmJdExt.style.display = "";
+        } else {
+          dmJdExt.style.display = "none";
+        }
+      })
+      .catch(function (e) {
+        if (my !== jdModalReq) return;
+        dmJdTitle.textContent = "Error";
+        dmJdErr.textContent = String(e);
+        dmJdErr.style.display = "block";
+      });
+  }
+
+  function showMsg(text, level) {
+    dmMsg.textContent = text;
+    dmMsg.style.display = "block";
+    dmMsg.className = "flash " + (level === "error" ? "error" : level === "success" ? "success" : "warn");
+  }
+
+  function hideMsg() {
+    dmMsg.style.display = "none";
+    dmMsg.textContent = "";
+  }
+
+  function openModal(getUrl, patchUrl, pushUrl, sendUrl, fullUrl) {
+    dmGet = getUrl;
+    dmPatch = patchUrl;
+    dmPush = pushUrl;
+    dmSend = sendUrl || "";
+    dmFull.href = fullUrl;
+    hideMsg();
+    if (dmSignoffHint) {
+      dmSignoffHint.style.display = "none";
+      dmSignoffHint.textContent = "";
+    }
+    dmResume.value = "";
+    resetModalJd();
+    backdrop.hidden = false;
+    document.body.style.overflow = "hidden";
+    dmTitle.textContent = "Loading…";
+    dmSubtitle.replaceChildren();
+    fetch(getUrl, { headers: { Accept: "application/json" } })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.status === 404 ? "Draft not found" : "Failed to load");
+        return r.json();
+      })
+      .then(function (d) {
+        dmTitle.textContent = "Draft #" + d.id;
+        dmSubtitle.replaceChildren();
+        var jobSpan = document.createElement("span");
+        jobSpan.textContent = d.job_title
+          ? ("Job: " + d.job_title)
+          : "No linked job listing";
+        dmSubtitle.appendChild(jobSpan);
+        if (d.job_description_url) {
+          dmSubtitle.appendChild(document.createTextNode(" "));
+          var jdBtn = document.createElement("button");
+          jdBtn.type = "button";
+          jdBtn.className = "dm-jd-link";
+          jdBtn.textContent = "JD";
+          jdBtn.setAttribute("aria-label", "Show job description on the right");
+          jdBtn.addEventListener("click", function () {
+            loadModalJd(d.job_description_url);
+          });
+          dmSubtitle.appendChild(jdBtn);
+        }
+        dmTo.value = d.to || "";
+        dmSubject.value = d.subject || "";
+        dmBody.value = d.body || "";
+        if (dmSignoffHint) {
+          if (d.signoff_source === "default") {
+            dmSignoffHint.textContent =
+              "Your sign-off is still the default. Set your name under Settings → Email template, or connect Gmail and use “Fill from Google account”.";
+            dmSignoffHint.style.display = "block";
+          } else {
+            dmSignoffHint.style.display = "none";
+          }
+        }
+        if (d.error && d.status === "error") {
+          showMsg("Last error: " + d.error, "warn");
+        }
+        if (d.status === "sent") {
+          dmPushBtn.disabled = true;
+          dmPushBtn.title = "Already sent";
+          dmSendBtn.disabled = true;
+          dmSendBtn.title = "Already sent";
+        } else if (!gmailAuthed) {
+          dmPushBtn.disabled = true;
+          dmPushBtn.title = "Connect Gmail in Settings first";
+          dmSendBtn.disabled = true;
+          dmSendBtn.title = "Connect Gmail in Settings first";
+        } else {
+          dmPushBtn.disabled = false;
+          dmPushBtn.title = "";
+          dmSendBtn.disabled = false;
+          dmSendBtn.title = "";
+        }
+      })
+      .catch(function (e) {
+        showMsg(String(e), "error");
+      });
+  }
+
+  function closeModal() {
+    backdrop.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  document.querySelectorAll(".draft-modal-trigger").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      openModal(
+        btn.getAttribute("data-get-url"),
+        btn.getAttribute("data-patch-url"),
+        btn.getAttribute("data-push-url"),
+        btn.getAttribute("data-send-url"),
+        btn.getAttribute("data-full-url")
+      );
+    });
+  });
+
+  document.getElementById("dm-x").addEventListener("click", closeModal);
+  document.getElementById("dm-close").addEventListener("click", closeModal);
+  backdrop.addEventListener("click", function (ev) {
+    if (ev.target === backdrop) closeModal();
+  });
+
+  document.getElementById("dm-save").addEventListener("click", function () {
+    if (!dmPatch) return;
+    hideMsg();
+    fetch(dmPatch, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        to: dmTo.value,
+        subject: dmSubject.value,
+        body: dmBody.value,
+      }),
+    })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, j: j };
+        });
+      })
+      .then(function (x) {
+        if (!x.ok) throw new Error(x.j.detail || "Save failed");
+        showMsg("Saved.", "success");
+      })
+      .catch(function (e) {
+        showMsg(String(e), "error");
+      });
+  });
+
+  document.getElementById("dm-push").addEventListener("click", function () {
+    if (!dmPush) return;
+    if (!gmailAuthed) {
+      showMsg("Connect Gmail in Settings first.", "error");
+      return;
+    }
+    var file = dmResume.files && dmResume.files[0];
+    if (!hasResume && !file) {
+      showMsg("Add a resume in Settings or choose a file here before pushing.", "error");
+      return;
+    }
+    hideMsg();
+    var fd = new FormData();
+    fd.append("to", dmTo.value);
+    fd.append("subject", dmSubject.value);
+    fd.append("body", dmBody.value);
+    if (file) fd.append("resume", file);
+
+    fetch(dmPush, { method: "POST", body: fd })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, j: j, status: r.status };
+        });
+      })
+      .then(function (x) {
+        if (x.j.ok) {
+          showMsg(x.j.message || "Pushed to Gmail.", "success");
+        } else {
+          showMsg(x.j.error || "Push failed", "error");
+        }
+      })
+      .catch(function (e) {
+        showMsg(String(e), "error");
+      });
+  });
+
+  document.getElementById("dm-send").addEventListener("click", function () {
+    if (!dmSend) return;
+    if (!gmailAuthed) {
+      showMsg("Connect Gmail in Settings first.", "error");
+      return;
+    }
+    var file = dmResume.files && dmResume.files[0];
+    if (!hasResume && !file) {
+      showMsg("Add a resume in Settings or choose a file here before sending.", "error");
+      return;
+    }
+    if (!window.confirm("Send this email immediately via Gmail? This cannot be undone.")) {
+      return;
+    }
+    hideMsg();
+    var fd = new FormData();
+    fd.append("to", dmTo.value);
+    fd.append("subject", dmSubject.value);
+    fd.append("body", dmBody.value);
+    if (file) fd.append("resume", file);
+
+    fetch(dmSend, { method: "POST", body: fd })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, j: j };
+        });
+      })
+      .then(function (x) {
+        if (x.j.ok) {
+          showMsg(x.j.message || "Sent via Gmail.", "success");
+          dmPushBtn.disabled = true;
+          dmPushBtn.title = "Already sent";
+          dmSendBtn.disabled = true;
+          dmSendBtn.title = "Already sent";
+        } else {
+          showMsg(x.j.error || "Send failed", "error");
+        }
+      })
+      .catch(function (e) {
+        showMsg(String(e), "error");
+      });
+  });
+})();
+    </script>
+  {% endif %}
+{% endblock %}

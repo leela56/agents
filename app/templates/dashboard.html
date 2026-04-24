@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - nvoids Job Agent{% endblock %}
+{% block content %}
+  <h2>Dashboard</h2>
+
+  <div class="card">
+    <h3>Status</h3>
+    <div class="grid">
+      <div class="stat">
+        <div class="label">Jobs seen</div>
+        <div class="value">{{ total_jobs }}</div>
+      </div>
+      {% if gmail_authed %}
+      <div class="stat">
+        <div class="label">Matched</div>
+        <div class="value">{{ matched_jobs }}</div>
+      </div>
+      <div class="stat">
+        <div class="label">Drafts pending</div>
+        <div class="value">{{ pending_drafts }}</div>
+      </div>
+      <div class="stat">
+        <div class="label">Drafts pushed</div>
+        <div class="value">{{ pushed_drafts }}</div>
+      </div>
+      {% else %}
+      <div class="stat" style="grid-column: span 3;">
+        <div class="label">Matches &amp; drafts</div>
+        <div class="value muted" style="font-size: 13px; font-weight: 500; line-height: 1.45;">
+          Connect Gmail to show matched counts and draft status. The poller still saves jobs locally.
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Polling</h3>
+    <p class="muted" style="margin-top:0;">
+      Search URL: <code>{{ settings.search_url }}</code><br>
+      Interval: every {{ settings.poll_interval_minutes }} min<br>
+      Last poll: {% if last_poll %}<code>{{ last_poll }}</code>{% else %}<span class="muted">never</span>{% endif %}
+      {% if last_summary %} &mdash; <span class="muted">{{ last_summary }}</span>{% endif %}
+    </p>
+    <form method="post" action="/run-now">
+      <button type="submit">Run poll now</button>
+      <a class="btn secondary" href="/jobs">View matched jobs</a>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Resume</h3>
+    {% if resume_info %}
+      <p><strong>{{ resume_info.filename }}</strong>
+         <span class="muted">(uploaded {{ resume_info.uploaded_at.strftime("%Y-%m-%d %H:%M UTC") }})</span></p>
+    {% else %}
+      <p class="muted">No resume uploaded yet. <a href="/settings">Upload one</a>.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Gmail</h3>
+    {% if gmail_authed %}
+      <p><span class="badge ok">Connected</span> Drafts can be pushed from the Jobs page.</p>
+    {% else %}
+      <p>
+        <span class="badge warn">Not connected</span>
+        <a class="btn" href="/auth/google" style="margin-left: 8px;">Connect Gmail</a>
+      </p>
+    {% endif %}
+  </div>
+{% endblock %}

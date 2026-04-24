@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Draft {{ draft.id }} - nvoids Job Agent{% endblock %}
+{% block content %}
+  <style>
+    .draft-page-split {
+      display: grid;
+      grid-template-columns: 1fr minmax(260px, 34%);
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .draft-page-split { grid-template-columns: 1fr; }
+      .draft-page-jd { border-left: 0 !important; border-top: 1px solid var(--border); padding-left: 0 !important; padding-top: 14px; }
+    }
+    .draft-page-jd {
+      position: sticky;
+      top: 12px;
+      border-left: 1px solid var(--border);
+      padding-left: 16px;
+      max-height: calc(100vh - 80px);
+      overflow: auto;
+    }
+    .draft-page-jd[hidden] { display: none !important; }
+    .page-jd-body {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 8px;
+      max-height: min(480px, 55vh);
+      overflow: auto;
+    }
+    button.page-jd-link {
+      background: none; border: 0; padding: 0; margin-left: 8px;
+      color: var(--accent); cursor: pointer; font: inherit;
+      text-decoration: underline; font-weight: 600;
+    }
+  </style>
+
+  <div class="row" style="margin-bottom: 12px;">
+    <button type="button" class="btn secondary" onclick="if (history.length > 1) { history.back(); } else { location.href='/jobs'; }">← Back</button>
+    <a class="btn secondary" href="/jobs">Jobs list</a>
+    <a class="btn secondary" href="/">Dashboard</a>
+  </div>
+  <h2>Draft #{{ draft.id }}</h2>
+
+  <div class="draft-page-split">
+    <div class="draft-page-main">
+      <div class="card">
+        <div class="row" style="justify-content: space-between;">
+          <div>
+            <span class="badge {% if draft.status == 'pushed' %}ok{% elif draft.status == 'error' %}err{% else %}warn{% endif %}">
+              {{ draft.status }}
+            </span>
+            {% if draft.gmail_draft_id %}
+              <span class="muted">Gmail draft id: <code>{{ draft.gmail_draft_id }}</code></span>
+            {% endif %}
+          </div>
+          <div class="muted">
+            Updated {{ draft.updated_at.strftime("%Y-%m-%d %H:%M UTC") }}
+          </div>
+        </div>
+        {% if draft.job.title %}
+          <p class="muted" style="margin-top:10px;line-height:1.45;">
+            Job: <strong>{{ draft.job.title }}</strong>
+            {% if job_description_url %}
+              <button type="button" class="page-jd-link" id="page-jd-btn" aria-label="Show job description on the right">JD</button>
+            {% endif %}
+            {% if draft.job.url %}&mdash; <a href="{{ draft.job.url }}" target="_blank" rel="noopener">open listing</a>{% endif %}
+          </p>
+        {% endif %}
+        {% if draft.error %}
+          <p class="flash error" style="margin-top:10px;">Error: {{ draft.error }}</p>
+        {% endif %}
+        {% if draft.signoff_source == 'default' %}
+          <p class="flash warn" style="margin-top:10px;line-height:1.45;">
+            Your sign-off is still the default placeholder. Set your real name under
+            <a href="/settings">Settings → Email template</a>, or connect Gmail and use
+            <strong>Fill from Google account</strong> (profile scope is required to read your name).
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <form method="post" action="/drafts/{{ draft.id }}">
+          <label for="to">To</label>
+          <input type="email" id="to" name="to" value="{{ draft.to }}" required>
+
+          <label for="subject">Subject</label>
+          <input type="text" id="subject" name="subject" value="{{ draft.subject }}" required>
+
+          <label for="body">Body</label>
+          <textarea id="body" name="body" required>{{ draft.body }}</textarea>
+
+          <div class="row nowrap" style="margin-top: 14px;">
+            <button type="submit">Save changes</button>
+            {% if gmail_authed and draft.status != 'sent' %}
+              <button type="submit" class="secondary"
+                formaction="/drafts/{{ draft.id }}/send" formmethod="post"
+                {% if not has_resume %}disabled title="Upload a resume on Settings first"{% endif %}>Send</button>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Push to Gmail</h3>
+        {% if not gmail_authed %}
+          <p><span class="badge warn">Not connected</span>
+             <a class="btn" href="/auth/google" style="margin-left: 8px;">Connect Gmail</a></p>
+        {% else %}
+          <p class="muted">
+            This creates (or updates) a draft in your Gmail account. You still have to
+            review and send it manually from Gmail.
+          </p>
+          {% if not has_resume %}
+            <p class="flash error" style="margin-top:10px;">
+              No resume uploaded yet. Upload one on <a href="/settings">Settings</a> so it can be attached.
+            </p>
+          {% endif %}
+          <form method="post" action="/drafts/{{ draft.id }}/push">
+            <button type="submit" {% if not has_resume %}disabled{% endif %}>Push to Gmail</button>
+          </form>
+        {% endif %}
+      </div>
+
+      {% if not gmail_authed %}
+        <div class="card">
+          <h3>Send from toolbar</h3>
+          <p><span class="badge warn">Not connected</span>
+             <a class="btn" href="/auth/google" style="margin-left: 8px;">Connect Gmail</a> to enable Send above.</p>
+        </div>
+      {% elif not has_resume %}
+        <div class="card">
+          <h3>Send from toolbar</h3>
+          <p class="flash error" style="margin-top:0;">
+            Upload a resume on <a href="/settings">Settings</a> to enable Send above.
+          </p>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if job_description_url %}
+    <aside id="page-jd-aside" class="draft-page-jd card" hidden>
+      <div class="jd-panel__heading" style="margin-bottom:6px;">Job description</div>
+      <p id="page-jd-placeholder" class="muted" style="margin:0;font-size:12px;">
+        Click <strong>JD</strong> to load listing text from nvoids.
+      </p>
+      <div id="page-jd-details" hidden>
+        <h4 id="page-jd-title" style="margin:8px 0 4px;font-size:14px;font-weight:600;"></h4>
+        <p id="page-jd-meta" class="muted" style="margin:0 0 6px;font-size:11px;"></p>
+        <p id="page-jd-err" class="flash error" style="display:none;margin:0 0 6px;padding:6px 8px;font-size:12px;"></p>
+        <div id="page-jd-body" class="page-jd-body" aria-live="polite"></div>
+        <p style="margin:8px 0 0;">
+          <a id="page-jd-ext" href="#" target="_blank" rel="noopener" class="muted" style="font-size:12px;">Open on nvoids ↗</a>
+        </p>
+      </div>
+    </aside>
+    {% endif %}
+  </div>
+
+  {% if job_description_url %}
+  <script>
+(function () {
+  var url = {{ job_description_url | tojson }};
+  var btn = document.getElementById("page-jd-btn");
+  var aside = document.getElementById("page-jd-aside");
+  var ph = document.getElementById("page-jd-placeholder");
+  var det = document.getElementById("page-jd-details");
+  var t = document.getElementById("page-jd-title");
+  var m = document.getElementById("page-jd-meta");
+  var err = document.getElementById("page-jd-err");
+  var body = document.getElementById("page-jd-body");
+  var ext = document.getElementById("page-jd-ext");
+  var seq = 0;
+
+  function load() {
+    var my = ++seq;
+    aside.hidden = false;
+    ph.hidden = true;
+    det.hidden = false;
+    t.textContent = "Loading…";
+    m.textContent = "";
+    body.textContent = "";
+    err.style.display = "none";
+    ext.href = "#";
+    fetch(url, { headers: { Accept: "application/json" } })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, j: j };
+        });
+      })
+      .then(function (x) {
+        if (my !== seq) return;
+        var j = x.j;
+        if (!x.ok) {
+          var em = j.error || (j.detail && (typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail))) || "Request failed";
+          t.textContent = "Could not load";
+          err.textContent = em;
+          err.style.display = "block";
+          body.textContent = j.body || "";
+          return;
+        }
+        t.textContent = j.title || "(no title)";
+        m.textContent = j.location || "";
+        if (j.error) {
+          err.textContent = j.error;
+          err.style.display = "block";
+          body.textContent = j.body || "";
+        } else {
+          err.style.display = "none";
+          body.textContent = j.body || "(No text extracted.)";
+        }
+        if (j.url) {
+          ext.href = j.url;
+          ext.style.display = "";
+        } else {
+          ext.style.display = "none";
+        }
+      })
+      .catch(function (e) {
+        if (my !== seq) return;
+        t.textContent = "Error";
+        err.textContent = String(e);
+        err.style.display = "block";
+      });
+  }
+
+  if (btn) btn.addEventListener("click", load);
+})();
+  </script>
+  {% endif %}
+{% endblock %}

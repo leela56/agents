@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Settings - nvoids Job Agent{% endblock %}
+{% block content %}
+  <div class="row" style="margin-bottom: 12px;">
+    <button type="button" class="btn secondary" onclick="if (history.length > 1) { history.back(); } else { location.href='/'; }">← Back</button>
+    <a class="btn secondary" href="/">Dashboard</a>
+  </div>
+  <h2>Settings</h2>
+
+  <div class="card">
+    <h3>Resume</h3>
+    {% if resume %}
+      <p>
+        Active: <strong>{{ resume.filename }}</strong>
+        <span class="muted">
+          ({{ resume.mime_type or "unknown type" }},
+          uploaded {{ resume.uploaded_at.strftime("%Y-%m-%d %H:%M UTC") }})
+        </span>
+      </p>
+    {% else %}
+      <p class="muted">No resume uploaded yet.</p>
+    {% endif %}
+    <form method="post" action="/settings/resume" enctype="multipart/form-data">
+      <label for="file">Upload new resume (.pdf, .doc, .docx)</label>
+      <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+      <div class="row" style="margin-top: 12px;">
+        <button type="submit">Upload</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Gmail</h3>
+    {% if gmail_authed %}
+      <p><span class="badge ok">Connected</span></p>
+      <p class="muted">
+        Re-authorize if you revoked access or hit a scope issue:
+        <a class="btn secondary" href="/auth/google" style="margin-left: 6px;">Reconnect</a>
+      </p>
+    {% else %}
+      <p>
+        <span class="badge warn">Not connected</span>
+        <a class="btn" href="/auth/google" style="margin-left: 8px;">Connect Gmail</a>
+      </p>
+      <p class="muted">
+        Requires <code>{{ settings.credentials_path }}</code> in the project root
+        (OAuth 2.0 Client, Web type, redirect URI
+        <code>{{ settings.base_url }}/auth/callback</code>).
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Email template</h3>
+    <p class="muted" style="margin-top:0;">
+      Used for new drafts: <code>{your_name}</code> in the body and your sign-off.
+      Enter your name here, or pull it from the Google account you use for Gmail.
+    </p>
+
+    {% if gmail_authed %}
+      <form method="post" action="/settings/fill-name-from-google" class="row" style="margin-bottom: 14px;">
+        <button type="submit" class="secondary">Fill from Google account</button>
+        <span class="muted" style="font-size:12px;">Sets your sign-off from your Google display name. Use <strong>Reconnect</strong> above if this fails.</span>
+      </form>
+    {% endif %}
+
+    <form method="post" action="/settings/template">
+      <label for="your_name">Your name (sign-off)</label>
+      <input type="text" id="your_name" name="your_name" value="{{ template.your_name }}" required>
+
+      <label for="subject" style="margin-top: 12px;">Subject</label>
+      <input type="text" id="subject" name="subject" value="{{ template.subject }}" required>
+
+      <label for="body" style="margin-top: 12px;">Body</label>
+      <textarea id="body" name="body" rows="10" required>{{ template.body }}</textarea>
+
+      <div class="row" style="margin-top: 12px;">
+        <button type="submit">Save template</button>
+      </div>
+    </form>
+
+    <div style="margin-top: 16px;">
+      <p class="muted" style="margin: 0 0 6px 0;">Preview</p>
+      <pre>{{ rendered_body }}</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Safety</h3>
+    <p class="muted">
+      This tool creates <strong>Gmail drafts only</strong>; nothing is sent
+      automatically. Review every draft before hitting send, and make sure your
+      outreach complies with nvoids.com's Terms of Service and applicable
+      anti-spam law (CAN-SPAM, CASL, GDPR, etc.).
+    </p>
+  </div>
+{% endblock %}
