@@ -13,6 +13,8 @@ Local web app for a single user: it polls **nvoids.com** job search results, mat
 
 ## Folder structure
 
+This project lives under the **`nvoids-job-agent/`** directory in the `agents` monorepo. Paths below are relative to that folder.
+
 ```
 app/
   main.py           # FastAPI routes, flash redirects, template wiring
@@ -34,8 +36,8 @@ There is no `src/` split; the installable package root is **`app/`**.
 
 ## How to run
 
-- **Dev server:** `uvicorn app.main:app --reload --port 8000` (from project root, venv active)
-- **Tests:** `python -m pytest tests -q`
+- **Dev server:** `uvicorn app.main:app --reload --port 8000` (from `nvoids-job-agent/`, venv active)
+- **Tests:** `python -m pytest tests -q` (same directory)
 - **Build:** N/A (interpreted app; deploy = run uvicorn with deps + `credentials.json`)
 
 ## Key conventions
